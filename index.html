@@ -2,17 +2,27 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Filtro Industrial - Categoria 11</title>
+    <title>Filtro Industrial - Seletor de Categoria</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <style>
         body { font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background: #eef2f3; margin: 0; }
         .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; width: 450px; }
-        h2 { color: #333; margin-bottom: 5px; }
-        p { color: #666; font-size: 14px; margin-bottom: 25px; }
-        input { margin-bottom: 20px; width: 100%; }
-        button { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; }
+        h2 { color: #333; margin-bottom: 10px; }
+        p { color: #666; font-size: 14px; margin-bottom: 20px; }
+        
+        /* Estilização do Select */
+        select, input[type="file"] { 
+            margin-bottom: 20px; 
+            width: 100%; 
+            padding: 10px; 
+            border-radius: 8px; 
+            border: 1px solid #ccc;
+            font-size: 14px;
+        }
+        
+        button { background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; cursor: pointer; width: 100%; font-size: 16px; font-weight: bold; transition: 0.3s; }
         button:hover { background: #219150; }
     </style>
 </head>
@@ -20,7 +30,13 @@
 
 <div class="card">
     <h2>Filtro de Eventos</h2>
-    <p>Extraindo <b><input type="number" name="cat" id="cat"></b> com correção de Data/Hora.</p>
+    <p>Selecione o tipo de equipamento para o relatório:</p>
+    
+    <select id="tipoEquipamento">
+        <option value="11">Porta de Emergência</option>
+        <option value="10">Compressor </option>
+    </select>
+
     <input type="file" id="excelFiles" accept=".xlsx, .xls" multiple>
     <button id="btn">Gerar PDF Formatado</button>
 </div>
@@ -28,9 +44,8 @@
 <script>
     // Função para converter número serial do Excel em Data e Hora formatada
     function formatarDataExcel(serial) {
-        if (!serial || isNaN(serial)) return serial;
+        if (!serial || isNaN(serial)) return { data: serial, hora: serial };
         
-        // Ajuste para o fuso horário e data base do Excel (1900)
         const data = new Date(Math.round((serial - 25569) * 86400 * 1000));
         
         const dia = String(data.getUTCDate()).padStart(2, '0');
@@ -46,11 +61,12 @@
         };
     }
 
-    let catnumber = 
-
     document.getElementById('btn').addEventListener('click', async () => {
         const files = document.getElementById('excelFiles').files;
-        if (files.length === 0) return alert("Selecione o arquivo!");
+        const categoriaSelecionada = document.getElementById('tipoEquipamento').value;
+        const nomeEquipamento = document.getElementById('tipoEquipamento').options[document.getElementById('tipoEquipamento').selectedIndex].text;
+
+        if (files.length === 0) return alert("Selecione ao menos um arquivo!");
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF('l', 'mm', 'a4');
@@ -63,10 +79,10 @@
             const rows = XLSX.utils.sheet_to_json(sheet);
 
             rows.forEach(row => {
-                const cat = String(row.Category || "");
+                const catNoArquivo = String(row.Category || "");
                 
-                if (cat === "11") {
-                    // Convertendo os números estranhos em data/hora legível
+                // Compara a categoria do Excel com a selecionada no Select
+                if (catNoArquivo === categoriaSelecionada) {
                     const dataFormatada = formatarDataExcel(row.Date);
                     const horaFormatada = formatarDataExcel(row.Time);
 
@@ -81,7 +97,7 @@
 
         if (todosDados.length > 0) {
             doc.setFontSize(16);
-            doc.text("Relatório Filtrado - Categoria 11 (Formatado)", 14, 15);
+            doc.text(`Relatório: ${nomeEquipamento}`, 14, 15);
             
             doc.autoTable({
                 head: [['Data', 'Hora', 'Mensagem']],
@@ -92,9 +108,9 @@
                 styles: { fontSize: 9 }
             });
 
-            doc.save("Relatorio_Final_Formatado.pdf");
+            doc.save(`Relatorio_${nomeEquipamento.replace(/\s+/g, '_')}.pdf`);
         } else {
-            alert("Nenhum dado com Categoria 11 encontrado.");
+            alert(`Nenhum dado encontrado para a categoria ${categoriaSelecionada}.`);
         }
     });
 </script>
